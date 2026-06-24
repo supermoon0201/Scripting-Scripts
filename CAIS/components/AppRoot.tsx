@@ -429,7 +429,8 @@ export function AppRoot() {
       })()
     }
 
-    timer = (globalThis as any).setTimeout?.(tick, 900)
+    // 首轮尽快执行，避免打开后还要额外等待接近 1 秒。
+    timer = (globalThis as any).setTimeout?.(tick, 100)
     return () => {
       stopped = true
       if (timer) (globalThis as any).clearTimeout?.(timer)
@@ -460,6 +461,7 @@ export function AppRoot() {
     if (pipPresented.value || appMonitorStopper) return
     const changed = await captureClipboardIfChanged(settingsRef.current)
     if (changed) {
+      await runSyncClipboard(false)
       await refresh(true, settingsRef.current)
     }
   }

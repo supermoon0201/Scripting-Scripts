@@ -867,7 +867,8 @@ export function KeyboardView(props: { initialState?: KeyboardInitialState } = {}
       })()
     }
 
-    timer = (globalThis as any).setTimeout?.(tick, 900)
+    // 首轮尽快执行，减少打开键盘后的首次同步等待。
+    timer = (globalThis as any).setTimeout?.(tick, 100)
     return () => {
       stopped = true
       if (timer) (globalThis as any).clearTimeout?.(timer)
@@ -898,7 +899,12 @@ export function KeyboardView(props: { initialState?: KeyboardInitialState } = {}
   function ensureKeyboardMonitor() {
     if (keyboardMonitorStopper) return
     keyboardMonitorStopper = startClipboardMonitor(settings, (next) => {
-      if (next.lastCapturedAt) void refresh()
+      if (next.lastCapturedAt) {
+        void (async () => {
+          await syncClipboardCycle(settings).catch(() => {})
+          await refresh()
+        })()
+      }
     })
   }
 
