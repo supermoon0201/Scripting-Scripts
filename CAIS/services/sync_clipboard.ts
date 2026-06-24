@@ -42,6 +42,13 @@ function remoteJsonUrl(settings: CaisSettings): string {
   return base.endsWith("/SyncClipboard.json") ? base : `${base}/SyncClipboard.json`
 }
 
+function remoteBaseUrl(settings: CaisSettings): string {
+  const jsonUrl = remoteJsonUrl(settings)
+  return jsonUrl.endsWith("/SyncClipboard.json")
+    ? jsonUrl.slice(0, -"/SyncClipboard.json".length)
+    : jsonUrl
+}
+
 function toBase64(value: string): string {
   const buffer = (globalThis as any).Buffer
   if (buffer?.from) {
@@ -82,11 +89,33 @@ function localTextFromPayload(payload: ClipPayload | null): { kind: "text" | "ur
   }
 }
 
-function remoteTextFromDocument(document: RemoteClipboardDocument | null): { kind: "text" | "url"; text: string; signature: string } | null {
+async function fetchRemoteTextFile(settings: CaisSettings, dataName: string): Promise<string> {
+  const base = remoteBaseUrl(settings)
+  if (!base) throw new Error("未配置 WebDAV 地址")
+  const encodedName = dataName.split("/").map((part) => encodeURIComponent(part)).join("/")
+  const response = await fetch(`${base}/file/${encodedName}`, {
+    method: "GET",
+    headers: buildHeaders(settings, { Accept: "text/plain" }),
+  })
+  if (!response.ok) {
+    throw new Error(`SyncClipboard 文本文件拉取失败（HTTP ${response.status}）`)
+  }
+  return normalizeClipContent(await response.text())
+}
+
+async function resolveRemoteText(settings: CaisSettings, document: RemoteClipboardDocument): Promise<string> {
+  if (document.hasData && document.dataName) {
+    const fullText = normalizeRemoteText(await fetchRemoteTextFile(settings, document.dataName))
+    if (fullText) return fullText
+  }
+  return normalizeRemoteText(document.text)
+}
+
+async function remoteTextFromDocument(settings: CaisSettings, document: RemoteClipboardDocument | null): Promise<{ kind: "text" | "url"; text: string; signature: string } | null> {
   if (!document) return null
   const type = String(document.type ?? "text").toLowerCase()
   if (type !== "text") return null
-  const text = normalizeRemoteText(document.text)
+  const text = await resolveRemoteText(settings, document)
   if (!text) return null
   const kind = isLikelyURL(text) ? "url" : "text"
   return {
@@ -157,7 +186,7 @@ export async function syncClipboardCycle(settings: CaisSettings): Promise<SyncCl
   if (remoteDocument?.hasData !== false && remoteDocument?.type && String(remoteDocument.type).toLowerCase() !== "text") {
     return { pulled: false, pushed: false, skipped: true, message: "远端当前是非文本内容，已跳过同步" }
   }
-  const remote = remoteTextFromDocument(remoteDocument)
+  const remote = await remoteTextFromDocument(settings, remoteDocument)
   if (remote) {
     // 远端一旦出现新签名，优先拉取，避免两个端在同一轮里互相覆盖。
     if (remote.signature !== lastRemoteSignature) {

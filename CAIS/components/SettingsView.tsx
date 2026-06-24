@@ -34,7 +34,7 @@ import {
 } from "../utils/custom_action";
 
 const INTERVAL_OPTIONS = [100, 200, 300, 400, 500];
-const SYNC_INTERVAL_OPTIONS = [1000, 1500, 2000, 3000, 5000];
+const SYNC_INTERVAL_OPTIONS = [200, 500, 1000, 1500, 2000, 3000, 5000];
 const MAX_ITEM_OPTIONS = [200, 500, 800];
 const KEYBOARD_MAX_ITEM_OPTIONS = [10, 20, 30, 40, 50];
 const CLIPBOARD_CLEAR_OPTIONS: Array<{ range: ClipboardClearRange; title: string }> = [
@@ -602,7 +602,7 @@ export function SettingsView(props: {
         <TextField
           title="用户名"
           value={settings.syncClipboard.username}
-          prompt="可选"
+          prompt="填写 SyncClipboard / WebDAV 用户名"
           onChanged={(username: string) =>
             update({
               syncClipboard: {
@@ -614,7 +614,7 @@ export function SettingsView(props: {
         <SecureField
           title="密码"
           value={settings.syncClipboard.password}
-          prompt="可选"
+          prompt="填写 SyncClipboard / WebDAV 密码"
           onChanged={(password: string) =>
             update({
               syncClipboard: {

@@ -123,7 +123,7 @@ function sanitizeSettings(raw: any): CaisSettings {
       webdavUrl: String(raw?.syncClipboard?.webdavUrl ?? DEFAULT_CAIS_SETTINGS.syncClipboard.webdavUrl).trim(),
       username: String(raw?.syncClipboard?.username ?? DEFAULT_CAIS_SETTINGS.syncClipboard.username).trim(),
       password: String(raw?.syncClipboard?.password ?? DEFAULT_CAIS_SETTINGS.syncClipboard.password),
-      syncIntervalMs: Math.max(500, Math.min(10000, syncIntervalMs || DEFAULT_CAIS_SETTINGS.syncClipboard.syncIntervalMs)),
+      syncIntervalMs: Math.max(200, Math.min(10000, syncIntervalMs || DEFAULT_CAIS_SETTINGS.syncClipboard.syncIntervalMs)),
     },
     keyboardMenu: {
       builtins,

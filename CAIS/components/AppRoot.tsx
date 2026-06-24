@@ -408,7 +408,7 @@ export function AppRoot() {
 
     function schedule() {
       if (stopped) return
-      const interval = Math.max(500, settingsRef.current.syncClipboard.syncIntervalMs || 1500)
+      const interval = Math.max(200, settingsRef.current.syncClipboard.syncIntervalMs || 1500)
       timer = (globalThis as any).setTimeout?.(tick, interval)
     }
 

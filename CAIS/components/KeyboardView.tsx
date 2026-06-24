@@ -842,7 +842,7 @@ export function KeyboardView(props: { initialState?: KeyboardInitialState } = {}
 
     function schedule() {
       if (stopped) return
-      const interval = Math.max(500, settings.syncClipboard.syncIntervalMs || 1500)
+      const interval = Math.max(200, settings.syncClipboard.syncIntervalMs || 1500)
       timer = (globalThis as any).setTimeout?.(tick, interval)
     }
 
