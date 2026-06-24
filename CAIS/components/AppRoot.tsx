@@ -25,6 +25,7 @@ import {
 import type { CaisSettings, ClipboardClearRange, ClipGroup, ClipItem, KeyboardCustomAction, KeyboardMenuBuiltinAction, MonitorStatus } from "../types"
 import { captureCurrentClipboard, startClipboardMonitor, stopClipboardMonitor } from "../services/clipboard_capture"
 import { currentChangeCount, writeClipToPasteboard, writeImageToPasteboard, writeTextToPasteboard } from "../services/pasteboard_adapter"
+import { syncClipboardCycle } from "../services/sync_clipboard"
 import {
   addClipFromPayload,
   clearClipboardClipsByRange,
@@ -281,6 +282,7 @@ export function AppRoot() {
   const [appFullscreen, setAppFullscreen] = useState(() => readAppFullscreen(false))
   const [loading, setLoading] = useState(false)
   const [toastMessage, setToastMessage] = useState("")
+  const [syncClipboardStatus, setSyncClipboardStatus] = useState("SyncClipboard 未启用")
   const [monitorStatus, setMonitorStatus] = useState<MonitorStatus>({
     active: false,
     lastMessage: "未启动",
@@ -399,11 +401,47 @@ export function AppRoot() {
     }
   }, [query])
 
+  useEffect(() => {
+    let stopped = false
+    let syncing = false
+    let timer: any = null
+
+    function schedule() {
+      if (stopped) return
+      const interval = Math.max(500, settingsRef.current.syncClipboard.syncIntervalMs || 1500)
+      timer = (globalThis as any).setTimeout?.(tick, interval)
+    }
+
+    function tick() {
+      if (stopped) return
+      if (syncing) {
+        schedule()
+        return
+      }
+      syncing = true
+      void (async () => {
+        try {
+          await runSyncClipboard(false)
+        } finally {
+          syncing = false
+          schedule()
+        }
+      })()
+    }
+
+    timer = (globalThis as any).setTimeout?.(tick, 900)
+    return () => {
+      stopped = true
+      if (timer) (globalThis as any).clearTimeout?.(timer)
+    }
+  }, [])
+
   async function boot() {
     setLoading(true)
     try {
       await initializeDatabase()
       await captureClipboardAndRefresh(settingsRef.current, true)
+      await runSyncClipboard(false)
       if (Script.queryParameters?.pip === "1") {
         await activatePipFromApp()
       }
@@ -435,6 +473,28 @@ export function AppRoot() {
       return result.status === "created" || result.status === "updated"
     } catch {
       return false
+    }
+  }
+
+  async function runSyncClipboard(showFeedback = true) {
+    try {
+      const result = await syncClipboardCycle(settingsRef.current)
+      const message = `[${formatDateTime(Date.now())}] ${result.message}`
+      if (showFeedback || !result.skipped) {
+        setSyncClipboardStatus(message)
+      }
+      if (result.pulled) {
+        await refresh(true, settingsRef.current)
+      }
+      if (showFeedback) {
+        showToast(result.message)
+      }
+    } catch (error: any) {
+      const message = String(error?.message ?? error ?? "SyncClipboard 同步失败")
+      setSyncClipboardStatus(`[${formatDateTime(Date.now())}] ${message}`)
+      if (showFeedback) {
+        showToast(message)
+      }
     }
   }
 
@@ -1179,6 +1239,8 @@ export function AppRoot() {
               onChanged={updateSettings}
               onClearFavorites={() => void requestClear("favorites")}
               onClearClipboard={(range) => void requestClear(range)}
+              onSyncClipboard={() => void runSyncClipboard(true)}
+              syncClipboardStatus={syncClipboardStatus}
               addActionToken={addCustomActionToken}
               leadingToolbar={toolbarLeading()}
               trailingToolbar={settingsTrailingToolbar()}

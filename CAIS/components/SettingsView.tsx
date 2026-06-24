@@ -7,6 +7,7 @@ import {
   Navigation,
   NavigationStack,
   Picker,
+  SecureField,
   Section,
   Spacer,
   Stepper,
@@ -33,6 +34,7 @@ import {
 } from "../utils/custom_action";
 
 const INTERVAL_OPTIONS = [100, 200, 300, 400, 500];
+const SYNC_INTERVAL_OPTIONS = [1000, 1500, 2000, 3000, 5000];
 const MAX_ITEM_OPTIONS = [200, 500, 800];
 const KEYBOARD_MAX_ITEM_OPTIONS = [10, 20, 30, 40, 50];
 const CLIPBOARD_CLEAR_OPTIONS: Array<{ range: ClipboardClearRange; title: string }> = [
@@ -308,6 +310,8 @@ export function SettingsView(props: {
   onChanged: (settings: CaisSettings) => void;
   onClearFavorites?: () => void;
   onClearClipboard?: (range: ClipboardClearRange) => void;
+  onSyncClipboard?: () => void;
+  syncClipboardStatus?: string;
   addActionToken?: number;
   leadingToolbar?: any;
   trailingToolbar?: any;
@@ -560,6 +564,91 @@ export function SettingsView(props: {
             </Text>
           ))}
         </Picker>
+      </Section>
+
+      <Section
+        header={<Text>SyncClipboard 同步</Text>}
+        footer={
+          <Text>
+            {props.syncClipboardStatus || "使用 WebDAV 读写 SyncClipboard.json，仅同步文本和链接。"}
+          </Text>
+        }
+      >
+        <Toggle
+          value={settings.syncClipboard.enabled}
+          onChanged={(enabled: boolean) =>
+            update({
+              syncClipboard: {
+                ...settings.syncClipboard,
+                enabled,
+              },
+            })}
+          toggleStyle="switch"
+        >
+          <Text>启用同步</Text>
+        </Toggle>
+        <TextField
+          title="WebDAV 地址"
+          value={settings.syncClipboard.webdavUrl}
+          prompt="https://example.com/dav/SyncClipboard.json"
+          onChanged={(webdavUrl: string) =>
+            update({
+              syncClipboard: {
+                ...settings.syncClipboard,
+                webdavUrl,
+              },
+            })}
+        />
+        <TextField
+          title="用户名"
+          value={settings.syncClipboard.username}
+          prompt="可选"
+          onChanged={(username: string) =>
+            update({
+              syncClipboard: {
+                ...settings.syncClipboard,
+                username,
+              },
+            })}
+        />
+        <SecureField
+          title="密码"
+          value={settings.syncClipboard.password}
+          prompt="可选"
+          onChanged={(password: string) =>
+            update({
+              syncClipboard: {
+                ...settings.syncClipboard,
+                password,
+              },
+            })}
+        />
+        <Picker
+          title="轮询间隔"
+          pickerStyle="menu"
+          value={optionIndex(
+            SYNC_INTERVAL_OPTIONS,
+            settings.syncClipboard.syncIntervalMs,
+          )}
+          onChanged={(index: number) =>
+            update({
+              syncClipboard: {
+                ...settings.syncClipboard,
+                syncIntervalMs: SYNC_INTERVAL_OPTIONS[index] ?? 1500,
+              },
+            })}
+        >
+          {SYNC_INTERVAL_OPTIONS.map((value, index) => (
+            <Text key={value} tag={index}>
+              {value} ms
+            </Text>
+          ))}
+        </Picker>
+        <Button
+          title="立即同步"
+          systemImage="arrow.triangle.2.circlepath"
+          action={() => props.onSyncClipboard?.()}
+        />
       </Section>
 
       <Section header={<Text>界面显示</Text>}>

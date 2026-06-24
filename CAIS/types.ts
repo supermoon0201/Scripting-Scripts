@@ -41,6 +41,14 @@ export type CaptureResult =
 
 export type DuplicatePolicy = "skip" | "bump"
 
+export type SyncClipboardSettings = {
+  enabled: boolean
+  webdavUrl: string
+  username: string
+  password: string
+  syncIntervalMs: number
+}
+
 export type CaisSettings = {
   captureText: boolean
   captureImages: boolean
@@ -55,6 +63,7 @@ export type CaisSettings = {
   hapticEngineClicks: boolean
   keyboardMaxItems: number
   keyboardMenu: KeyboardMenuSettings
+  syncClipboard: SyncClipboardSettings
 }
 
 export type KeyboardMenuBuiltinAction =
@@ -111,6 +120,13 @@ export const DEFAULT_CAIS_SETTINGS: CaisSettings = {
   inputClicks: false,
   hapticEngineClicks: true,
   keyboardMaxItems: 30,
+  syncClipboard: {
+    enabled: false,
+    webdavUrl: "",
+    username: "",
+    password: "",
+    syncIntervalMs: 1500,
+  },
   keyboardMenu: {
     builtins: {
       pin: true,
