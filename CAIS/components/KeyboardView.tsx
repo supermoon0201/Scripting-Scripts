@@ -43,6 +43,7 @@ import {
 } from "../storage/clip_repository"
 import { readClipDataVersion } from "../storage/change_signal"
 import { loadSettings } from "../storage/settings_store"
+import { syncClipboardCycle } from "../services/sync_clipboard"
 import { imagePreviewPath } from "../storage/image_store"
 import { summarizeContent } from "../utils/common"
 import { disposeCaisFeedback, playCaisFeedback, prepareCaisFeedback } from "../utils/feedback"
@@ -429,6 +430,10 @@ function rememberKeyboardItems(scope: ClipListScope, items: ClipItem[], version 
 
 export async function preloadKeyboardInitialState(): Promise<KeyboardInitialState> {
   const settings = loadSettings()
+  try {
+    await syncClipboardCycle(settings)
+  } catch {
+  }
   const version = readClipDataVersion()
   const scope: ClipListScope = "clipboard"
   const items = await getClips("", queryLimitForKeyboard(settings), scope)
@@ -831,6 +836,45 @@ export function KeyboardView(props: { initialState?: KeyboardInitialState } = {}
   }, [])
 
   useEffect(() => {
+    let stopped = false
+    let syncing = false
+    let timer: any = null
+
+    function schedule() {
+      if (stopped) return
+      const interval = Math.max(500, settings.syncClipboard.syncIntervalMs || 1500)
+      timer = (globalThis as any).setTimeout?.(tick, interval)
+    }
+
+    function tick() {
+      if (stopped) return
+      if (syncing) {
+        schedule()
+        return
+      }
+      syncing = true
+      void (async () => {
+        try {
+          const result = await syncClipboardCycle(settings)
+          if (result.pulled) {
+            await refresh(true)
+          }
+        } catch {
+        } finally {
+          syncing = false
+          schedule()
+        }
+      })()
+    }
+
+    timer = (globalThis as any).setTimeout?.(tick, 900)
+    return () => {
+      stopped = true
+      if (timer) (globalThis as any).clearTimeout?.(timer)
+    }
+  }, [])
+
+  useEffect(() => {
     if (!didHandleInitialTabEffect.current) {
       didHandleInitialTabEffect.current = true
       return
@@ -877,6 +921,13 @@ export function KeyboardView(props: { initialState?: KeyboardInitialState } = {}
   async function boot(lifecycle: number) {
     if (!initialLoaded) setLoading(true)
     try {
+      try {
+        const result = await syncClipboardCycle(settings)
+        if (result.pulled) {
+          await refresh(true, lifecycle)
+        }
+      } catch {
+      }
       if (!initialLoaded) await refresh(true, lifecycle)
       if (lifecycle === keyboardLifecycleGeneration) scheduleKeyboardMonitor(lifecycle)
     } catch {

@@ -12,6 +12,8 @@ type RemoteClipboardDocument = {
   hash?: string
   updateTime?: number
   timestamp?: number
+  size?: number
+  dataName?: string
 }
 
 export type SyncClipboardCycleResult = {
@@ -81,7 +83,7 @@ function localTextFromPayload(payload: ClipPayload | null): { kind: "text" | "ur
 }
 
 function remoteTextFromDocument(document: RemoteClipboardDocument | null): { kind: "text" | "url"; text: string; signature: string } | null {
-  if (!document || document.hasData === false) return null
+  if (!document) return null
   const type = String(document.type ?? "text").toLowerCase()
   if (type !== "text") return null
   const text = normalizeRemoteText(document.text)
@@ -112,9 +114,12 @@ async function uploadRemoteDocument(settings: CaisSettings, text: string): Promi
   const url = remoteJsonUrl(settings)
   if (!url) throw new Error("未配置 WebDAV 地址")
   const body = JSON.stringify({
-    type: "text",
+    // SyncClipboard 协议要求类型值大小写敏感，文本必须使用 "Text"。
+    type: "Text",
     text,
-    hasData: true,
+    // 文本直接内联到 JSON 中时，hasData 必须为 false，不能缺失 dataName。
+    hasData: false,
+    size: text.length,
     updateTime: Date.now(),
   })
   const response = await fetch(url, {
